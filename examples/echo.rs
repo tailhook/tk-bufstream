@@ -65,7 +65,7 @@ impl<T, S: Io> Future for LineProto<T, S>
             if let Some(pos) = endline {
                 let chunk = self.io.in_buf[..pos].to_vec();
                 self.io.in_buf.consume(pos+1);  // consume together with '\n'
-                // Only echo valid utf-8
+                // Only process valid utf-8 "requests"
                 if let Ok(line) = String::from_utf8(chunk) {
                     self.in_flight = Some(self.service.call(line));
                     continue;
