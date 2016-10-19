@@ -1,0 +1,25 @@
+[package]
+name = "tk-bufstream"
+description = """
+    A buffered stream backed by contiguous buffers (netbuf) for tokio
+"""
+license = "MIT/Apache-2.0"
+readme = "README.rst"
+keywords = ["tokio", "buffer", "stream", "tcp"]
+homepage = "http://github.com/tailhook/tk-bufstream"
+documentation = "http://docs.rs/tk-bufstream"
+version = "0.1.0"
+authors = ["paul@colomiets.name"]
+
+[dependencies]
+futures = "0.1.2"
+quick-error = "1.1.0"
+tokio-core = "0.1.0"
+netbuf = "0.3.5"
+
+[dev-dependencies]
+argparse = "0.2.1"
+env_logger = "0.3.5"
+
+[lib]
+name = "tk_bufstream"
