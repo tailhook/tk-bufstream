@@ -1,4 +1,6 @@
 use std::io;
+#[cfg(unix)]
+use std::os::unix::io::{AsRawFd, RawFd};
 
 use tokio_core::io::Io;
 
@@ -103,5 +105,12 @@ impl<S: Io> IoBuf<S> {
     /// flushed
     pub fn flushed(self) -> Flushed<S> {
         flushed(self)
+    }
+}
+
+#[cfg(unix)]
+impl<S: AsRawFd + Io> AsRawFd for IoBuf<S> {
+    fn as_raw_fd(&self) -> RawFd {
+        self.socket.as_raw_fd()
     }
 }
