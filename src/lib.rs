@@ -6,6 +6,8 @@ extern crate tokio_core;
 
 pub use netbuf::Buf;
 pub use iobuf::IoBuf;
+pub use flushed::Flushed;
 
 mod iobuf;
+mod flushed;
 

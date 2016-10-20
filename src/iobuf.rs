@@ -2,6 +2,7 @@ use std::io;
 
 use tokio_core::io::Io;
 
+use flushed::{Flushed, flushed};
 use {Buf};
 
 /// A wrapper for full-duplex stream
@@ -27,7 +28,15 @@ impl<S: Io> IoBuf<S> {
     }
     /// Read a chunk of data into a buffer
     ///
-    /// The data just read can then be found in `self.in_buf()`
+    /// The data just read can then be found in `self.in_buf`.
+    ///
+    /// This method does just one read. Because you are ought to try parse
+    /// request after every read rather than reading a lot of the data in
+    /// memory.
+    ///
+    /// This method returns `0` when no bytes are read, both when WouldBlock
+    /// occurred and when connection has been closed. You may then use
+    /// `self.done()` to distinguish from these conditions.
     pub fn read(&mut self) -> Result<usize, io::Error> {
         match self.in_buf.read_from(&mut self.socket) {
             Ok(0) => {
@@ -41,7 +50,7 @@ impl<S: Io> IoBuf<S> {
 
     /// Write data in the output buffer to actual stream
     ///
-    /// You should put the data to be sent into `self.out_buf()` before flush
+    /// You should put the data to be sent into `self.out_buf` before flush
     pub fn flush(&mut self) -> Result<(), io::Error> {
         loop {
             if self.out_buf.len() == 0 {
@@ -70,5 +79,11 @@ impl<S: Io> IoBuf<S> {
     /// Returns true when connection is closed by peer
     pub fn done(&self) -> bool {
         return self.done;
+    }
+
+    /// Returns a future which resolves to this stream when output buffer is
+    /// flushed
+    pub fn flushed(self) -> Flushed<S> {
+        flushed(self)
     }
 }
