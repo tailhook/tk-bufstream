@@ -114,3 +114,16 @@ impl<S: AsRawFd + Io> AsRawFd for IoBuf<S> {
         self.socket.as_raw_fd()
     }
 }
+
+impl<S: Io> io::Write for IoBuf<S> {
+    fn write(&mut self, buf: &[u8]) -> Result<usize, io::Error> {
+        // TODO(tailhook) may try to write to the buf directly if
+        // output buffer is empty
+        try!(self.out_buf.write(buf));
+        try!(self.flush());
+        Ok(buf.len())
+    }
+    fn flush(&mut self) -> Result<(), io::Error> {
+        self.flush()
+    }
+}
