@@ -44,6 +44,13 @@ impl<S: Io> IoBuf<S> {
                 Ok(0)
             }
             Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => Ok(0),
+            Err(ref e)
+                if e.kind() == io::ErrorKind::BrokenPipe ||
+                   e.kind() == io::ErrorKind::ConnectionReset
+            => {
+                self.done = true;
+                Ok(0)
+            }
             result => result,
         }
     }
@@ -62,6 +69,13 @@ impl<S: Io> IoBuf<S> {
                 Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
                     break;
                 }
+                Err(ref e)
+                    if e.kind() == io::ErrorKind::BrokenPipe ||
+                       e.kind() == io::ErrorKind::ConnectionReset
+                => {
+                    self.done = true;
+                    break;
+                }
                 Err(e) => {
                     return Err(e);
                 },
@@ -72,6 +86,10 @@ impl<S: Io> IoBuf<S> {
         match self.socket.flush() {
             Ok(()) => Ok(()),
             Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => Ok(()),
+            Err(ref e) if e.kind() == io::ErrorKind::BrokenPipe => {
+                self.done = true;
+                Ok(())
+            }
             Err(e) => Err(e),
         }
     }
