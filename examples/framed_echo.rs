@@ -1,7 +1,6 @@
 extern crate futures;
 extern crate tokio_core;
 extern crate tk_bufstream;
-extern crate tokio_service;
 
 use std::io;
 use std::str;
@@ -15,7 +14,7 @@ use tokio_core::net::TcpListener;
 use tokio_core::reactor::Core;
 use tk_bufstream::{Buf, IoBuf, Encode, Decode};
 
-const MAX_CONNECTIONS: usize = 2;
+const MAX_CONNECTIONS: usize = 200;
 
 struct Line(String);
 
