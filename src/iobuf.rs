@@ -5,7 +5,8 @@ use std::os::unix::io::{AsRawFd, RawFd};
 use tokio_core::io::Io;
 
 use flushed::{Flushed, flushed};
-use {Buf};
+use frame;
+use {Buf, Framed, Encode, Decode};
 
 /// A wrapper for full-duplex stream
 pub struct IoBuf<S: Io> {
@@ -105,6 +106,35 @@ impl<S: Io> IoBuf<S> {
     /// flushed
     pub fn flushed(self) -> Flushed<S> {
         flushed(self)
+    }
+
+    /// Provides a `Stream` and `Sink` interface for reading and writing to
+    /// this `IoBuf` object, using `Decode` and `Encode` to read and write the
+    /// raw data.
+    ///
+    /// Raw I/O objects work with byte sequences, but higher-level code
+    /// usually wants to batch these into meaningful chunks, called "frames".
+    /// This method layers framing on top of an I/O object, by using the
+    /// `Encode` and `Decode` traits:
+    ///
+    /// - `Encode` interprets frames we want to send into bytes;
+    /// - `Decode` interprets incoming bytes into a stream of frames.
+    ///
+    /// Note that the incoming and outgoing frame types may be distinct.
+    ///
+    /// This function returns a *single* object that is both `Stream` and
+    /// `Sink`; grouping this into a single object is often useful for
+    /// layering things like gzip or TLS, which require both read and write
+    /// access to the underlying object.
+    ///
+    /// If you want to work more directly with the streams and sink, consider
+    /// calling `split` on the `Framed` returned by this method, which will
+    /// break them into separate objects, allowing them to interact more
+    /// easily.
+    pub fn framed<D: Decode, E: Encode>(self) -> Framed<S, D, E>
+        where Self: Sized,
+    {
+        frame::framed(self)
     }
 }
 
