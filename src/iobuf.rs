@@ -131,10 +131,10 @@ impl<S: Io> IoBuf<S> {
     /// calling `split` on the `Framed` returned by this method, which will
     /// break them into separate objects, allowing them to interact more
     /// easily.
-    pub fn framed<D: Decode, E: Encode>(self) -> Framed<S, D, E>
+    pub fn framed<C: Encode + Decode>(self, codec: C) -> Framed<S, C>
         where Self: Sized,
     {
-        frame::framed(self)
+        frame::framed(self, codec)
     }
 }
 

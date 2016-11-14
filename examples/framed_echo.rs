@@ -18,14 +18,18 @@ const MAX_CONNECTIONS: usize = 200;
 
 struct Line(String);
 
-impl Encode for Line {
-    fn encode(self, buf: &mut Buf) {
-        writeln!(buf, "{}", &self.0).unwrap();
+struct Codec;
+
+impl Encode for Codec {
+    type Item = Line;
+    fn encode(&mut self, data: Line, buf: &mut Buf) {
+        writeln!(buf, "{}", &data.0).unwrap();
     }
 }
 
-impl Decode for Line {
-    fn decode(buf: &mut Buf) -> Result<Option<Self>, io::Error> {
+impl Decode for Codec {
+    type Item = Line;
+    fn decode(&mut self, buf: &mut Buf) -> Result<Option<Line>, io::Error> {
         if let Some(end) = buf[..].iter().position(|&x| x == b'\n') {
             let s = str::from_utf8(&buf[..end])
                 .map(|v| String::from(v))
@@ -52,7 +56,7 @@ fn main() {
         .map_err(|e| { println!("Accept error: {}", e); })
         .map(|(socket, _addr)| {
             let (stream, sink) = IoBuf::new(socket)
-                .framed::<Line, Line>().split();
+                .framed(Codec).split();
             sink.send_all(stream)
                 .map(|_| ())
                 .map_err(|e| { println!("Connection error: {}", e); })
