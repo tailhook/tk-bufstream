@@ -27,10 +27,10 @@ impl Encode for Line {
 impl Decode for Line {
     fn decode(buf: &mut Buf) -> Result<Option<Self>, io::Error> {
         if let Some(end) = buf[..].iter().position(|&x| x == b'\n') {
-            let s = try!(str::from_utf8(&buf[..end])
+            let s = str::from_utf8(&buf[..end])
                 .map(|v| String::from(v))
                 .map_err(|_| io::Error::new(io::ErrorKind::Other,
-                                            "can't decode utf-8")));
+                                            "can't decode utf-8"))?;
             buf.consume(end+1);
             Ok(Some(Line(s)))
         } else {

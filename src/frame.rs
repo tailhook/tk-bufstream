@@ -49,7 +49,7 @@ pub trait Decode: Sized {
     /// `Ok(None)` is returned. Typically this doesn't need to be implemented
     /// unless the framing protocol differs near the end of the stream.
     fn done(buf: &mut Buf) -> io::Result<Self> {
-        match try!(Self::decode(buf)) {
+        match Self::decode(buf)? {
             Some(frame) => Ok(frame),
             None => Err(io::Error::new(io::ErrorKind::Other,
                                        "bytes remaining on stream")),
@@ -77,10 +77,10 @@ fn read_frame<T: Io, D: Decode>(io: &mut IoBuf<T>)
     -> Poll<Option<D>, io::Error>
 {
     loop {
-        if let Some(frame) = try!(Decode::decode(&mut io.in_buf)) {
+        if let Some(frame) = Decode::decode(&mut io.in_buf)? {
             return Ok(Async::Ready(Some(frame)));
         } else {
-            let nbytes = try!(io.read());
+            let nbytes = io.read()?;
             if nbytes == 0 {
                 if io.done() {
                     return Ok(Async::Ready(None));
@@ -128,7 +128,7 @@ impl<T: Io, E: Encode> Sink for FramedWrite<T, E> {
 
     fn poll_complete(&mut self) -> Poll<(), io::Error> {
         if let Async::Ready(mut guard) = self.0.poll_lock() {
-            try!(guard.flush());
+            guard.flush()?;
             Ok(Async::Ready(()))
         } else {
             Ok(Async::NotReady)
@@ -159,7 +159,7 @@ impl<T: Io, D: Decode, E: Encode> Sink for Framed<T, D, E> {
     }
 
     fn poll_complete(&mut self) -> Poll<(), io::Error> {
-        try!(self.0.flush());
+        self.0.flush()?;
         Ok(Async::Ready(()))
     }
 }

@@ -15,7 +15,7 @@ impl<S: Io> Future for Flushed<S> {
     type Error = io::Error;
     fn poll(&mut self) -> Poll<IoBuf<S>, io::Error> {
         if let Some(ref mut conn) = self.0 {
-            try!(conn.flush());
+            conn.flush()?;
             if conn.out_buf.len() > 0 && !conn.done() {
                 return Ok(Async::NotReady);
             }

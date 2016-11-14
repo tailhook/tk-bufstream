@@ -43,17 +43,17 @@ impl<T, S: Io> Future for LineProto<T, S>
     type Item = ();
     type Error = io::Error;
     fn poll(&mut self) -> Poll<(), io::Error> {
-        try!(self.io.flush());
+        self.io.flush()?;
         loop {
             if let Some(mut future) = self.in_flight.take() {
-                match try!(future.poll()) {
+                match future.poll()? {
                     Async::Ready(value) => {
 
                         // This is how we emulate a protocol serializer
                         writeln!(&mut self.io.out_buf, "Echo: {}", value)
                             .expect("buffer write never fails");
 
-                        try!(self.io.flush());
+                        self.io.flush()?;
                     }
                     Async::NotReady => {
                         self.in_flight = Some(future);
@@ -71,7 +71,7 @@ impl<T, S: Io> Future for LineProto<T, S>
                     continue;
                 }
             } else {
-                let nbytes = try!(self.io.read());
+                let nbytes = self.io.read()?;
                 if nbytes == 0 {
                     if self.io.done() {
                         return Ok(Async::Ready(()));
