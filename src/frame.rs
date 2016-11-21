@@ -2,7 +2,6 @@
 use std::io;
 
 use futures::{Async, Poll, Stream, Sink, StartSend, AsyncSink};
-use futures::sync::BiLock;
 use tokio_core::io::Io;
 
 use {IoBuf, Buf};
@@ -96,51 +95,6 @@ fn read_frame<T: Io, C: Decode>(src: &mut Framed<T, C>)
     }
 }
 
-/// A `Stream` interface to an underlying `IoBuf` object, using the `Decode`
-/// trait to decode frames.
-pub struct FramedRead<T: Io, C>(BiLock<Framed<T, C>>);
-
-impl<T: Io, D: Decode> Stream for FramedRead<T, D> {
-    type Item = D::Item;
-    type Error = io::Error;
-
-    fn poll(&mut self) -> Poll<Option<D::Item>, io::Error> {
-        if let Async::Ready(mut guard) = self.0.poll_lock() {
-            read_frame(&mut *guard)
-        } else {
-            Ok(Async::NotReady)
-        }
-    }
-}
-
-/// A `Sink` interface to an underlying `Io` object, using the `Encode` trait
-/// to encode frames.
-pub struct FramedWrite<T: Io, C>(BiLock<Framed<T, C>>);
-
-impl<T: Io, E: Encode> Sink for FramedWrite<T, E> {
-    type SinkItem = E::Item;
-    type SinkError = io::Error;
-
-    fn start_send(&mut self, item: E::Item) -> StartSend<E::Item, io::Error> {
-        if let Async::Ready(mut guard) = self.0.poll_lock() {
-            let Framed(ref mut stream, ref mut codec) = *guard;
-            codec.encode(item, &mut stream.out_buf);
-            Ok(AsyncSink::Ready)
-        } else {
-            Ok(AsyncSink::NotReady(item))
-        }
-    }
-
-    fn poll_complete(&mut self) -> Poll<(), io::Error> {
-        if let Async::Ready(mut guard) = self.0.poll_lock() {
-            guard.0.flush()?;
-            Ok(Async::Ready(()))
-        } else {
-            Ok(Async::NotReady)
-        }
-    }
-}
-
 /// A unified `Stream` and `Sink` interface to an underlying `Io` object, using
 /// the `Encode` and `Decode` traits to encode and decode frames.
 pub struct Framed<T: Io, C>(IoBuf<T>, C);
@@ -174,17 +128,6 @@ pub fn framed<T: Io, C>(io: IoBuf<T>, codec: C) -> Framed<T, C> {
 }
 
 impl<T: Io, C> Framed<T, C> {
-    /// Splits this `Stream + Sink` object into separate `Stream` and `Sink`
-    /// objects, which can be useful when you want to split ownership between
-    /// tasks, or allow direct interaction between the two objects (e.g. via
-    /// `Sink::send_all`).
-    pub fn split(self) -> (FramedRead<T, C>, FramedWrite<T, C>) {
-        let (a, b) = BiLock::new(self);
-        let read = FramedRead(a);
-        let write = FramedWrite(b);
-        (read, write)
-    }
-
     /// Returns a reference to the underlying I/O stream wrapped by `Framed`.
     pub fn get_ref(&self) -> &IoBuf<T> {
         &self.0

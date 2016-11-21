@@ -7,7 +7,7 @@ extern crate tokio_core;
 pub use netbuf::Buf;
 pub use iobuf::IoBuf;
 pub use flushed::Flushed;
-pub use frame::{Decode, Encode, FramedRead, FramedWrite, Framed};
+pub use frame::{Decode, Encode, Framed};
 
 mod iobuf;
 mod flushed;

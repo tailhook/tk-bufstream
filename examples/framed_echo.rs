@@ -8,7 +8,7 @@ use std::io::Write;
 use std::net::SocketAddr;
 use std::env;
 
-use futures::{Future, Sink};
+use futures::Future;
 use futures::stream::Stream;
 use tokio_core::net::TcpListener;
 use tokio_core::reactor::Core;
@@ -55,9 +55,9 @@ fn main() {
     let done = socket.incoming()
         .map_err(|e| { println!("Accept error: {}", e); })
         .map(|(socket, _addr)| {
-            let (stream, sink) = IoBuf::new(socket)
+            let (sink, stream) = IoBuf::new(socket)
                 .framed(Codec).split();
-            sink.send_all(stream)
+            stream.forward(sink)
                 .map(|_| ())
                 .map_err(|e| { println!("Connection error: {}", e); })
         }).buffer_unordered(MAX_CONNECTIONS)
