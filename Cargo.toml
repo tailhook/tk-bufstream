@@ -8,7 +8,7 @@ readme = "README.rst"
 keywords = ["tokio", "buffer", "stream", "tcp"]
 homepage = "http://github.com/tailhook/tk-bufstream"
 documentation = "http://docs.rs/tk-bufstream"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["paul@colomiets.name"]
 
 [dependencies]
