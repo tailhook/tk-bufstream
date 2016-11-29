@@ -6,6 +6,7 @@ use tokio_core::io::Io;
 
 use flushed::{Flushed, flushed};
 use frame;
+use split;
 use {Buf, Framed, Encode, Decode};
 
 /// A wrapper for full-duplex stream
@@ -89,7 +90,9 @@ impl<S: Io> IoBuf<S> {
         match self.socket.flush() {
             Ok(()) => Ok(()),
             Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => Ok(()),
-            Err(ref e) if e.kind() == io::ErrorKind::BrokenPipe => {
+            Err(ref e) if e.kind() == io::ErrorKind::BrokenPipe ||
+                          e.kind() == io::ErrorKind::ConnectionReset
+            => {
                 self.done = true;
                 Ok(())
             }
@@ -135,6 +138,10 @@ impl<S: Io> IoBuf<S> {
         where Self: Sized,
     {
         frame::framed(self, codec)
+    }
+
+    pub fn split(self) -> (split::WriteBuf<S>, split::ReadBuf<S>) {
+        split::create(self.in_buf, self.out_buf, self.socket, self.done)
     }
 }
 
