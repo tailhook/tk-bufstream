@@ -1,9 +1,12 @@
 use std::io;
+use std::mem;
+#[cfg(unix)]
+use std::os::unix::io::{AsRawFd, RawFd};
 
 use tokio_core::io::Io;
 
-use futures::Async;
-use futures::sync::BiLock;
+use futures::{Async, Future, Poll};
+use futures::sync::{BiLock, BiLockAcquired, BiLockAcquire};
 use {Buf};
 
 struct Shared<S> {
@@ -21,6 +24,26 @@ pub struct ReadBuf<S> {
 pub struct WriteBuf<S> {
     pub out_buf: Buf,
     shared: BiLock<Shared<S>>,
+}
+
+/// A structure that locks IoBuf and allows you to write to the socket directly
+///
+/// Where "directly" means without buffering and presumably with some zero-copy
+/// method like `sendfile()` or `splice()`
+///
+/// Note: when `WriteRaw` is alive `ReadBuf` is alive, but locked and will
+/// wake up as quick as `WriteRaw` is converted back to `WriteBuf`.
+pub struct WriteRaw<S> {
+    io: BiLockAcquired<Shared<S>>,
+}
+
+/// A future which converts `WriteBuf` into `WriteRaw`
+pub struct FutureWriteRaw<S>(WriteRawFutState<S>);
+
+enum WriteRawFutState<S> {
+    Flushing(WriteBuf<S>),
+    Locking(BiLockAcquire<Shared<S>>),
+    Done,
 }
 
 pub fn create<S>(in_buf: Buf, out_buf: Buf, socket: S, done: bool)
@@ -152,5 +175,65 @@ impl<S: Io> WriteBuf<S> {
         } else {
             return false;
         }
+    }
+
+    /// Returns a future which will resolve into WriteRaw
+    ///
+    /// This future resolves when after two conditions:
+    ///
+    /// 1. Output buffer is fully flushed to the network (i.e. OS buffers)
+    /// 2. Internal BiLock is locked
+    ///
+    /// Note: `WriteRaw` will lock the underlying stream for the whole
+    /// lifetime of the `WriteRaw`.
+    pub fn borrow_raw(self) -> FutureWriteRaw<S> {
+        if self.out_buf.len() == 0 {
+            FutureWriteRaw(WriteRawFutState::Locking(self.shared.lock()))
+        } else {
+            FutureWriteRaw(WriteRawFutState::Flushing(self))
+        }
+    }
+}
+
+impl<S: Io> Future for FutureWriteRaw<S> {
+    type Item = WriteRaw<S>;
+    type Error = io::Error;
+    fn poll(&mut self) -> Poll<WriteRaw<S>, io::Error> {
+        use self::WriteRawFutState::*;
+        self.0 = match mem::replace(&mut self.0, Done) {
+            Flushing(mut buf) => {
+                buf.flush()?;
+                if buf.out_buf.len() == 0 {
+                    let mut lock = buf.shared.lock();
+                    match lock.poll().expect("lock never fails") {
+                        Async::Ready(s) => {
+                            return Ok(Async::Ready(WriteRaw { io: s }));
+                        }
+                        Async::NotReady => {}
+                    }
+                    Locking(lock)
+                } else {
+                    Flushing(buf)
+                }
+            }
+            Locking(mut f) => {
+                match f.poll().expect("lock never fails") {
+                    Async::Ready(s) => {
+                        return Ok(Async::Ready(WriteRaw { io: s }));
+                    }
+                    Async::NotReady => {}
+                }
+                Locking(f)
+            }
+            Done => panic!("future polled after completion"),
+        };
+        return Ok(Async::NotReady);
+    }
+}
+
+#[cfg(unix)]
+impl<S: AsRawFd + Io> AsRawFd for WriteRaw<S> {
+    fn as_raw_fd(&self) -> RawFd {
+        self.io.socket.as_raw_fd()
     }
 }
