@@ -1,4 +1,5 @@
 use std::io;
+use std::fmt;
 use std::mem;
 #[cfg(unix)]
 use std::os::unix::io::{AsRawFd, RawFd};
@@ -254,5 +255,17 @@ impl<S: Io> io::Write for WriteRaw<S> {
 impl<S: AsRawFd + Io> AsRawFd for WriteRaw<S> {
     fn as_raw_fd(&self) -> RawFd {
         self.io.socket.as_raw_fd()
+    }
+}
+
+impl<S: Io> fmt::Debug for ReadBuf<S> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "ReadBuf {{ in: {}b }}", self.in_buf.len())
+    }
+}
+
+impl<S: Io> fmt::Debug for WriteBuf<S> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "WriteBuf {{ out: {}b }}", self.out_buf.len())
     }
 }

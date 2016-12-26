@@ -1,4 +1,5 @@
 use std::io;
+use std::fmt;
 #[cfg(unix)]
 use std::os::unix::io::{AsRawFd, RawFd};
 
@@ -142,6 +143,18 @@ impl<S: Io> IoBuf<S> {
 
     pub fn split(self) -> (split::WriteBuf<S>, split::ReadBuf<S>) {
         split::create(self.in_buf, self.out_buf, self.socket, self.done)
+    }
+}
+
+impl<S: Io> fmt::Debug for IoBuf<S> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if self.done {
+            write!(f, "IoBuf {{ [done], in: {}b, out: {}b }}",
+                self.in_buf.len(), self.out_buf.len())
+        } else {
+            write!(f, "IoBuf {{ in: {}b, out: {}b }}",
+                self.in_buf.len(), self.out_buf.len())
+        }
     }
 }
 
