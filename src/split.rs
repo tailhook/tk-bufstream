@@ -231,6 +231,15 @@ impl<S: Io> Future for FutureWriteRaw<S> {
     }
 }
 
+impl<S: Io> io::Write for WriteRaw<S> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.io.socket.write(buf)
+    }
+    fn flush(&mut self) -> io::Result<()> {
+        self.io.socket.flush()
+    }
+}
+
 #[cfg(unix)]
 impl<S: AsRawFd + Io> AsRawFd for WriteRaw<S> {
     fn as_raw_fd(&self) -> RawFd {
