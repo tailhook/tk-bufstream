@@ -195,6 +195,16 @@ impl<S: Io> WriteBuf<S> {
     }
 }
 
+impl<S: Io> WriteRaw<S> {
+    /// Turn raw writer back into buffered and release internal BiLock
+    pub fn into_buf(self) -> WriteBuf<S> {
+        WriteBuf {
+            out_buf: Buf::new(),
+            shared: self.io.unlock(),
+        }
+    }
+}
+
 impl<S: Io> Future for FutureWriteRaw<S> {
     type Item = WriteRaw<S>;
     type Error = io::Error;
