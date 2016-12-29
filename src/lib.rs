@@ -7,7 +7,7 @@ extern crate tokio_core;
 pub use netbuf::Buf;
 pub use iobuf::IoBuf;
 pub use flushed::Flushed;
-pub use frame::{Decode, Encode, Framed};
+pub use frame::{Decode, Encode, Framed, ReadFramed, WriteFramed};
 pub use split::{ReadBuf, WriteBuf, WriteRaw, FutureWriteRaw};
 pub use mock::Mock;
 

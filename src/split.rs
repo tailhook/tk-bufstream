@@ -6,9 +6,10 @@ use std::os::unix::io::{AsRawFd, RawFd};
 
 use tokio_core::io::Io;
 
+use frame;
 use futures::{Async, Future, Poll};
 use futures::sync::{BiLock, BiLockAcquired, BiLockAcquire};
-use {Buf};
+use {Buf, Encode, Decode, ReadFramed, WriteFramed};
 
 struct Shared<S> {
     socket: S,
@@ -114,6 +115,10 @@ impl<S: Io> ReadBuf<S> {
             return false;
         }
     }
+
+    pub fn framed<D: Decode>(self, codec: D) -> ReadFramed<S, D> {
+        frame::read_framed(self, codec)
+    }
 }
 
 impl<S: Io> WriteBuf<S> {
@@ -193,6 +198,10 @@ impl<S: Io> WriteBuf<S> {
         } else {
             FutureWriteRaw(WriteRawFutState::Flushing(self))
         }
+    }
+
+    pub fn framed<E: Encode>(self, codec: E) -> WriteFramed<S, E> {
+        frame::write_framed(self, codec)
     }
 }
 

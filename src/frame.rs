@@ -4,7 +4,7 @@ use std::io;
 use futures::{Async, Poll, Stream, Sink, StartSend, AsyncSink};
 use tokio_core::io::Io;
 
-use {IoBuf, Buf};
+use {IoBuf, WriteBuf, ReadBuf, Buf};
 
 
 /// Decoding of a frame from an internal buffer.
@@ -76,35 +76,35 @@ pub trait Encode {
     fn encode(&mut self, value: Self::Item, buf: &mut Buf);
 }
 
-fn read_frame<T: Io, C: Decode>(src: &mut Framed<T, C>)
-    -> Poll<Option<C::Item>, io::Error>
-{
-    loop {
-        if let Some(frame) = src.1.decode(&mut src.0.in_buf)? {
-            return Ok(Async::Ready(Some(frame)));
-        } else {
-            let nbytes = src.0.read()?;
-            if nbytes == 0 {
-                if src.0.done() {
-                    return Ok(Async::Ready(None));
-                } else {
-                    return Ok(Async::NotReady);
-                }
-            }
-        }
-    }
-}
-
 /// A unified `Stream` and `Sink` interface to an underlying `Io` object, using
 /// the `Encode` and `Decode` traits to encode and decode frames.
 pub struct Framed<T: Io, C>(IoBuf<T>, C);
+
+/// A `Stream` interface to `ReadBuf` object
+pub struct ReadFramed<T: Io, C>(ReadBuf<T>, C);
+
+/// A `Sink` interface to `WriteBuf` object
+pub struct WriteFramed<T: Io, C>(WriteBuf<T>, C);
 
 impl<T: Io, C: Decode> Stream for Framed<T, C> {
     type Item = C::Item;
     type Error = io::Error;
 
     fn poll(&mut self) -> Poll<Option<Self::Item>, io::Error> {
-        read_frame(self)
+        loop {
+            if let Some(frame) = self.1.decode(&mut self.0.in_buf)? {
+                return Ok(Async::Ready(Some(frame)));
+            } else {
+                let nbytes = self.0.read()?;
+                if nbytes == 0 {
+                    if self.0.done() {
+                        return Ok(Async::Ready(None));
+                    } else {
+                        return Ok(Async::NotReady);
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -147,6 +147,99 @@ impl<T: Io, C> Framed<T, C> {
     ///
     /// Note that stream may contain both input and output data buffered.
     pub fn into_inner(self) -> IoBuf<T> {
+        self.0
+    }
+}
+
+impl<T: Io, C: Decode> Stream for ReadFramed<T, C> {
+    type Item = C::Item;
+    type Error = io::Error;
+
+    fn poll(&mut self) -> Poll<Option<Self::Item>, io::Error> {
+        loop {
+            if let Some(frame) = self.1.decode(&mut self.0.in_buf)? {
+                return Ok(Async::Ready(Some(frame)));
+            } else {
+                let nbytes = self.0.read()?;
+                if nbytes == 0 {
+                    if self.0.done() {
+                        return Ok(Async::Ready(None));
+                    } else {
+                        return Ok(Async::NotReady);
+                    }
+                }
+            }
+        }
+    }
+}
+
+pub fn read_framed<T: Io, C>(io: ReadBuf<T>, codec: C) -> ReadFramed<T, C> {
+    ReadFramed(io, codec)
+}
+
+impl<T: Io, C> ReadFramed<T, C> {
+    /// Returns a reference to the underlying I/O stream wrapped by `ReadFramed`.
+    pub fn get_ref(&self) -> &ReadBuf<T> {
+        &self.0
+    }
+
+    /// Returns a mutable reference to the underlying I/O stream wrapped by
+    /// `ReadFramed`.
+    ///
+    /// Note that care should be taken to not tamper with the underlying stream
+    /// of data coming in as it may corrupt the stream of frames otherwise being
+    /// worked with.
+    pub fn get_mut(&mut self) -> &mut ReadBuf<T> {
+        &mut self.0
+    }
+
+    /// Consumes the `ReadFramed`, returning its underlying I/O stream.
+    ///
+    /// Note that stream may contain both input and output data buffered.
+    pub fn into_inner(self) -> ReadBuf<T> {
+        self.0
+    }
+}
+
+impl<T: Io, C: Encode> Sink for WriteFramed<T, C> {
+    type SinkItem = C::Item;
+    type SinkError = io::Error;
+
+    fn start_send(&mut self, item: C::Item) -> StartSend<C::Item, io::Error> {
+        self.1.encode(item, &mut self.0.out_buf);
+        Ok(AsyncSink::Ready)
+    }
+
+    fn poll_complete(&mut self) -> Poll<(), io::Error> {
+        self.0.flush()?;
+        Ok(Async::Ready(()))
+    }
+}
+
+pub fn write_framed<T: Io, C>(io: WriteBuf<T>, codec: C) -> WriteFramed<T, C> {
+    WriteFramed(io, codec)
+}
+
+impl<T: Io, C> WriteFramed<T, C> {
+    /// Returns a reference to the underlying I/O stream wrapped by `WriteFramed`.
+    pub fn get_ref(&self) -> &WriteBuf<T> {
+        &self.0
+    }
+
+    /// Returns a mutable reference to the underlying I/O stream wrapped by
+    /// `WriteFramed`.
+    ///
+    /// Note that care should be taken to not tamper with the underlying stream
+    /// of data coming in as it may corrupt the stream of frames otherwise being
+    /// worked with.
+    pub fn get_mut(&mut self) -> &mut WriteBuf<T> {
+        &mut self.0
+    }
+
+    /// Consumes the `WriteFramed`, returning its underlying I/O stream.
+    ///
+    /// Note that stream may contain both input and output data buffered.
+    pub fn into_inner(self) -> WriteBuf<T> {
         self.0
     }
 }
