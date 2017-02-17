@@ -9,7 +9,7 @@ pub use iobuf::IoBuf;
 pub use flushed::Flushed;
 pub use frame::{Decode, Encode, Framed, ReadFramed, WriteFramed};
 pub use split::{ReadBuf, WriteBuf, WriteRaw, FutureWriteRaw};
-pub use mock::Mock;
+pub use mock::{Mock, MockData};
 
 mod iobuf;
 mod flushed;
