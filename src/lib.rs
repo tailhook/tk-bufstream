@@ -2,7 +2,7 @@
 
 extern crate netbuf;
 extern crate futures;
-extern crate tokio_core;
+extern crate tokio_io;
 
 pub use netbuf::Buf;
 pub use iobuf::IoBuf;

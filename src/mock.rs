@@ -2,8 +2,8 @@ use std::cmp::min;
 use std::io::{self, Read, Write};
 use std::sync::{Arc, Mutex};
 
-use tokio_core::io::Io;
 use netbuf::RangeArgument;
+use tokio_io::{AsyncRead, AsyncWrite};
 
 /// A thing that implements tokio_core::io::Io but never ready
 ///
@@ -25,7 +25,8 @@ impl Write for Mock {
     }
 }
 
-impl Io for Mock {}
+impl AsyncRead for Mock {}
+impl AsyncWrite for Mock {}
 
 
 /// A mock stream where you can push data to/from
@@ -103,7 +104,8 @@ impl Write for MockData {
     }
 }
 
-impl Io for MockData {}
+impl AsyncRead for MockData {}
+impl AsyncWrite for MockData {}
 
 
 #[cfg(test)]

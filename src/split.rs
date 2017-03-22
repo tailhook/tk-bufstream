@@ -4,11 +4,11 @@ use std::mem;
 #[cfg(unix)]
 use std::os::unix::io::{AsRawFd, RawFd};
 
-use tokio_core::io::Io;
-
-use frame;
 use futures::{Async, Future, Poll};
 use futures::sync::{BiLock, BiLockAcquired, BiLockAcquire};
+use tokio_io::{AsyncRead, AsyncWrite};
+
+use frame;
 use {Buf, Encode, Decode, ReadFramed, WriteFramed};
 
 struct Shared<S> {
@@ -66,7 +66,7 @@ pub fn create<S>(in_buf: Buf, out_buf: Buf, socket: S, done: bool)
         });
 }
 
-impl<S: Io> ReadBuf<S> {
+impl<S: AsyncRead> ReadBuf<S> {
     /// Read a chunk of data into a buffer
     ///
     /// The data just read can then be found in `self.in_buf`.
@@ -121,7 +121,7 @@ impl<S: Io> ReadBuf<S> {
     }
 }
 
-impl<S: Io> WriteBuf<S> {
+impl<S: AsyncWrite> WriteBuf<S> {
     /// Write data in the output buffer to actual stream
     ///
     /// You should put the data to be sent into `self.out_buf` before flush
@@ -205,7 +205,7 @@ impl<S: Io> WriteBuf<S> {
     }
 }
 
-impl<S: Io> WriteRaw<S> {
+impl<S: AsyncWrite> WriteRaw<S> {
     /// Turn raw writer back into buffered and release internal BiLock
     pub fn into_buf(self) -> WriteBuf<S> {
         WriteBuf {
@@ -215,7 +215,7 @@ impl<S: Io> WriteRaw<S> {
     }
 }
 
-impl<S: Io> Future for FutureWriteRaw<S> {
+impl<S: AsyncWrite> Future for FutureWriteRaw<S> {
     type Item = WriteRaw<S>;
     type Error = io::Error;
     fn poll(&mut self) -> Poll<WriteRaw<S>, io::Error> {
@@ -251,7 +251,7 @@ impl<S: Io> Future for FutureWriteRaw<S> {
     }
 }
 
-impl<S: Io> io::Write for WriteRaw<S> {
+impl<S: AsyncWrite> io::Write for WriteRaw<S> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         self.io.socket.write(buf)
     }
@@ -261,19 +261,19 @@ impl<S: Io> io::Write for WriteRaw<S> {
 }
 
 #[cfg(unix)]
-impl<S: AsRawFd + Io> AsRawFd for WriteRaw<S> {
+impl<S: AsRawFd> AsRawFd for WriteRaw<S> {
     fn as_raw_fd(&self) -> RawFd {
         self.io.socket.as_raw_fd()
     }
 }
 
-impl<S: Io> fmt::Debug for ReadBuf<S> {
+impl<S: AsyncRead> fmt::Debug for ReadBuf<S> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "ReadBuf {{ in: {}b }}", self.in_buf.len())
     }
 }
 
-impl<S: Io> fmt::Debug for WriteBuf<S> {
+impl<S: AsyncWrite> fmt::Debug for WriteBuf<S> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "WriteBuf {{ out: {}b }}", self.out_buf.len())
     }
