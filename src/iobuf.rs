@@ -42,7 +42,9 @@ impl<S> IoBuf<S> {
     /// This method returns `0` when no bytes are read, both when WouldBlock
     /// occurred and when connection has been closed. You may then use
     /// `self.done()` to distinguish from these conditions.
-    pub fn read(&mut self) -> Result<usize, io::Error> {
+    pub fn read(&mut self) -> Result<usize, io::Error>
+        where S: AsyncRead
+    {
         match self.in_buf.read_from(&mut self.socket) {
             Ok(0) => {
                 self.done = true;
@@ -63,7 +65,9 @@ impl<S> IoBuf<S> {
     /// Write data in the output buffer to actual stream
     ///
     /// You should put the data to be sent into `self.out_buf` before flush
-    pub fn flush(&mut self) -> Result<(), io::Error> {
+    pub fn flush(&mut self) -> Result<(), io::Error>
+        where S: AsyncWrite
+    {
         loop {
             if self.out_buf.len() == 0 {
                 break;
@@ -108,7 +112,9 @@ impl<S> IoBuf<S> {
 
     /// Returns a future which resolves to this stream when output buffer is
     /// flushed
-    pub fn flushed(self) -> Flushed<S> {
+    pub fn flushed(self) -> Flushed<S>
+        where S: AsyncWrite
+    {
         flushed(self)
     }
 
@@ -137,11 +143,14 @@ impl<S> IoBuf<S> {
     /// easily.
     pub fn framed<C: Encode + Decode>(self, codec: C) -> Framed<S, C>
         where Self: Sized,
+              S: AsyncRead + AsyncWrite
     {
         frame::framed(self, codec)
     }
 
-    pub fn split(self) -> (split::WriteBuf<S>, split::ReadBuf<S>) {
+    pub fn split(self) -> (split::WriteBuf<S>, split::ReadBuf<S>)
+        where S: AsyncRead + AsyncWrite
+    {
         split::create(self.in_buf, self.out_buf, self.socket, self.done)
     }
 }
@@ -165,7 +174,7 @@ impl<S: AsRawFd> AsRawFd for IoBuf<S> {
     }
 }
 
-impl<S> io::Write for IoBuf<S> {
+impl<S: AsyncWrite> io::Write for IoBuf<S> {
     fn write(&mut self, buf: &[u8]) -> Result<usize, io::Error> {
         // TODO(tailhook) may try to write to the buf directly if
         // output buffer is empty

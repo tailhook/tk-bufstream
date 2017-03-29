@@ -3,6 +3,7 @@ use std::io::{self, Read, Write};
 use std::sync::{Arc, Mutex};
 
 use netbuf::RangeArgument;
+use futures::{Poll, Async};
 use tokio_io::{AsyncRead, AsyncWrite};
 
 /// A thing that implements tokio_core::io::Io but never ready
@@ -26,7 +27,11 @@ impl Write for Mock {
 }
 
 impl AsyncRead for Mock {}
-impl AsyncWrite for Mock {}
+impl AsyncWrite for Mock {
+    fn shutdown(&mut self) -> Poll<(), io::Error> {
+        Ok(Async::NotReady)
+    }
+}
 
 
 /// A mock stream where you can push data to/from
@@ -105,7 +110,15 @@ impl Write for MockData {
 }
 
 impl AsyncRead for MockData {}
-impl AsyncWrite for MockData {}
+impl AsyncWrite for MockData {
+    fn shutdown(&mut self) -> Poll<(), io::Error> {
+        if self.output.lock().unwrap().len() > 0 {
+            Ok(Async::NotReady)
+        } else {
+            Ok(Async::Ready(()))
+        }
+    }
+}
 
 
 #[cfg(test)]
