@@ -1,16 +1,16 @@
 use std::io;
 
 use futures::{Future, Poll, Async};
-use tokio_core::io::Io;
+use tokio_io::AsyncWrite;
 
 use {IoBuf};
 
 /// A future which yields the original stream when output buffer is fully
 /// written to the socket
-pub struct Flushed<S: Io>(Option<IoBuf<S>>);
+pub struct Flushed<S>(Option<IoBuf<S>>);
 
 
-impl<S: Io> Future for Flushed<S> {
+impl<S: AsyncWrite> Future for Flushed<S> {
     type Item = IoBuf<S>;
     type Error = io::Error;
     fn poll(&mut self) -> Poll<IoBuf<S>, io::Error> {
@@ -24,6 +24,6 @@ impl<S: Io> Future for Flushed<S> {
     }
 }
 
-pub fn flushed<S: Io>(sock: IoBuf<S>) -> Flushed<S> {
+pub fn flushed<S: AsyncWrite>(sock: IoBuf<S>) -> Flushed<S> {
     Flushed(Some(sock))
 }

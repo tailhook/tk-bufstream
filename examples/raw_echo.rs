@@ -1,4 +1,5 @@
 extern crate futures;
+extern crate tokio_io;
 extern crate tokio_core;
 extern crate tk_bufstream;
 extern crate tokio_service;
@@ -9,15 +10,16 @@ use std::io::Write;
 use std::net::SocketAddr;
 use std::env;
 
-use futures::{Future, Poll, Async, finished};
+use futures::{Future, Poll, Async};
+use futures::future::{FutureResult, ok};
 use futures::stream::Stream;
-use tokio_core::io::Io;
+use tokio_io::{AsyncRead, AsyncWrite};
 use tokio_core::net::TcpListener;
 use tokio_core::reactor::Core;
-use tokio_service::{Service, simple_service};
+use tokio_service::Service;
 use tk_bufstream::IoBuf;
 
-struct LineProto<T, S: Io>
+struct LineProto<T, S: AsyncRead+AsyncWrite>
     where T: Service<Request=String, Response=String, Error=io::Error>,
 {
     io: IoBuf<S>,
@@ -25,7 +27,10 @@ struct LineProto<T, S: Io>
     in_flight: Option<T::Future>,
 }
 
-impl<T, S: Io> LineProto<T, S>
+struct LineService;
+
+
+impl<T, S: AsyncRead+AsyncWrite> LineProto<T, S>
     where T: Service<Request=String, Response=String, Error=io::Error>,
 {
     fn new(socket: S, service: T) -> LineProto<T, S> {
@@ -37,7 +42,7 @@ impl<T, S: Io> LineProto<T, S>
     }
 }
 
-impl<T, S: Io> Future for LineProto<T, S>
+impl<T, S: AsyncRead+AsyncWrite> Future for LineProto<T, S>
     where T: Service<Request=String, Response=String, Error=io::Error>,
 {
     type Item = ();
@@ -84,6 +89,18 @@ impl<T, S: Io> Future for LineProto<T, S>
     }
 }
 
+impl Service for LineService {
+    type Request = String;
+    type Response = String;
+    type Error = io::Error;
+    type Future = FutureResult<String, io::Error>;
+
+    fn call(&self, input: String) -> Self::Future {
+        // To emulate some useful service we trim and replace
+        // all spaces into pluses
+        ok(input.trim().replace(" ", "+"))
+    }
+}
 
 fn main() {
     let addr = env::args().nth(1).unwrap_or("127.0.0.1:7777".to_string());
@@ -96,14 +113,7 @@ fn main() {
 
     let done = socket.incoming().for_each(|(socket, _addr)| {
         handle.spawn(
-            LineProto::new(socket,
-                simple_service(|input: String| {
-
-                    // To emulate some useful service we trim and replace
-                    // all spaces into pluses
-                    return finished(input.trim().replace(" ", "+"));
-
-                }))
+            LineProto::new(socket, LineService)
             .map_err(|e| println!("Connection error: {}", e))
         );
         Ok(())

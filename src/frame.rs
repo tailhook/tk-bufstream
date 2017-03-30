@@ -2,7 +2,7 @@
 use std::io;
 
 use futures::{Async, Poll, Stream, Sink, StartSend, AsyncSink};
-use tokio_core::io::Io;
+use tokio_io::{AsyncRead, AsyncWrite};
 
 use {IoBuf, WriteBuf, ReadBuf, Buf};
 
@@ -78,15 +78,15 @@ pub trait Encode {
 
 /// A unified `Stream` and `Sink` interface to an underlying `Io` object, using
 /// the `Encode` and `Decode` traits to encode and decode frames.
-pub struct Framed<T: Io, C>(IoBuf<T>, C);
+pub struct Framed<T, C>(IoBuf<T>, C);
 
 /// A `Stream` interface to `ReadBuf` object
-pub struct ReadFramed<T: Io, C>(ReadBuf<T>, C);
+pub struct ReadFramed<T, C>(ReadBuf<T>, C);
 
 /// A `Sink` interface to `WriteBuf` object
-pub struct WriteFramed<T: Io, C>(WriteBuf<T>, C);
+pub struct WriteFramed<T, C>(WriteBuf<T>, C);
 
-impl<T: Io, C: Decode> Stream for Framed<T, C> {
+impl<T: AsyncRead, C: Decode> Stream for Framed<T, C> {
     type Item = C::Item;
     type Error = io::Error;
 
@@ -108,7 +108,7 @@ impl<T: Io, C: Decode> Stream for Framed<T, C> {
     }
 }
 
-impl<T: Io, C: Encode> Sink for Framed<T, C> {
+impl<T: AsyncWrite, C: Encode> Sink for Framed<T, C> {
     type SinkItem = C::Item;
     type SinkError = io::Error;
 
@@ -123,11 +123,11 @@ impl<T: Io, C: Encode> Sink for Framed<T, C> {
     }
 }
 
-pub fn framed<T: Io, C>(io: IoBuf<T>, codec: C) -> Framed<T, C> {
+pub fn framed<T, C>(io: IoBuf<T>, codec: C) -> Framed<T, C> {
     Framed(io, codec)
 }
 
-impl<T: Io, C> Framed<T, C> {
+impl<T, C> Framed<T, C> {
     /// Returns a reference to the underlying I/O stream wrapped by `Framed`.
     pub fn get_ref(&self) -> &IoBuf<T> {
         &self.0
@@ -151,7 +151,7 @@ impl<T: Io, C> Framed<T, C> {
     }
 }
 
-impl<T: Io, C: Decode> Stream for ReadFramed<T, C> {
+impl<T: AsyncRead, C: Decode> Stream for ReadFramed<T, C> {
     type Item = C::Item;
     type Error = io::Error;
 
@@ -173,11 +173,13 @@ impl<T: Io, C: Decode> Stream for ReadFramed<T, C> {
     }
 }
 
-pub fn read_framed<T: Io, C>(io: ReadBuf<T>, codec: C) -> ReadFramed<T, C> {
+pub fn read_framed<T: AsyncRead, C>(io: ReadBuf<T>, codec: C)
+    -> ReadFramed<T, C>
+{
     ReadFramed(io, codec)
 }
 
-impl<T: Io, C> ReadFramed<T, C> {
+impl<T: AsyncRead, C> ReadFramed<T, C> {
     /// Returns a reference to the underlying I/O stream wrapped by `ReadFramed`.
     pub fn get_ref(&self) -> &ReadBuf<T> {
         &self.0
@@ -201,7 +203,7 @@ impl<T: Io, C> ReadFramed<T, C> {
     }
 }
 
-impl<T: Io, C: Encode> Sink for WriteFramed<T, C> {
+impl<T: AsyncWrite, C: Encode> Sink for WriteFramed<T, C> {
     type SinkItem = C::Item;
     type SinkError = io::Error;
 
@@ -216,11 +218,11 @@ impl<T: Io, C: Encode> Sink for WriteFramed<T, C> {
     }
 }
 
-pub fn write_framed<T: Io, C>(io: WriteBuf<T>, codec: C) -> WriteFramed<T, C> {
+pub fn write_framed<T, C>(io: WriteBuf<T>, codec: C) -> WriteFramed<T, C> {
     WriteFramed(io, codec)
 }
 
-impl<T: Io, C> WriteFramed<T, C> {
+impl<T: AsyncWrite, C> WriteFramed<T, C> {
     /// Returns a reference to the underlying I/O stream wrapped by `WriteFramed`.
     pub fn get_ref(&self) -> &WriteBuf<T> {
         &self.0
