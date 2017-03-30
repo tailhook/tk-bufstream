@@ -173,7 +173,7 @@ impl<T: AsyncRead, C: Decode> Stream for ReadFramed<T, C> {
     }
 }
 
-pub fn read_framed<T: AsyncRead, C>(io: ReadBuf<T>, codec: C)
+pub fn read_framed<T, C>(io: ReadBuf<T>, codec: C)
     -> ReadFramed<T, C>
 {
     ReadFramed(io, codec)

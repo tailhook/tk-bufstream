@@ -66,7 +66,7 @@ pub fn create<S>(in_buf: Buf, out_buf: Buf, socket: S, done: bool)
         });
 }
 
-impl<S: AsyncRead> ReadBuf<S> {
+impl<S> ReadBuf<S> {
     /// Read a chunk of data into a buffer
     ///
     /// The data just read can then be found in `self.in_buf`.
@@ -82,7 +82,9 @@ impl<S: AsyncRead> ReadBuf<S> {
     /// Note: this method silently assumes that you will call it on poll
     /// every time until self.done() returns false. I.e. it behaves as Async
     /// method but does't return Async value to allow simpler handling
-    pub fn read(&mut self) -> Result<usize, io::Error> {
+    pub fn read(&mut self) -> Result<usize, io::Error>
+        where S: AsyncRead
+    {
         if let Async::Ready(ref mut s) = self.shared.poll_lock() {
             match self.in_buf.read_from(&mut s.socket) {
                 Ok(0) => {
@@ -121,7 +123,7 @@ impl<S: AsyncRead> ReadBuf<S> {
     }
 }
 
-impl<S: AsyncWrite> WriteBuf<S> {
+impl<S> WriteBuf<S> {
     /// Write data in the output buffer to actual stream
     ///
     /// You should put the data to be sent into `self.out_buf` before flush
@@ -129,7 +131,9 @@ impl<S: AsyncWrite> WriteBuf<S> {
     /// Note: this method silently assumes that you will call it on poll
     /// every time until self.done() returns false. I.e. it behaves as Async
     /// method but does't return Async value to allow simpler handling
-    pub fn flush(&mut self) -> Result<(), io::Error> {
+    pub fn flush(&mut self) -> Result<(), io::Error>
+        where S: AsyncWrite
+    {
         if let Async::Ready(ref mut s) = self.shared.poll_lock() {
             loop {
                 if self.out_buf.len() == 0 {
@@ -205,7 +209,7 @@ impl<S: AsyncWrite> WriteBuf<S> {
     }
 }
 
-impl<S: AsyncWrite> WriteRaw<S> {
+impl<S> WriteRaw<S> {
     /// Turn raw writer back into buffered and release internal BiLock
     pub fn into_buf(self) -> WriteBuf<S> {
         WriteBuf {
