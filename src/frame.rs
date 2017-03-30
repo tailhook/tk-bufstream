@@ -179,7 +179,7 @@ pub fn read_framed<T, C>(io: ReadBuf<T>, codec: C)
     ReadFramed(io, codec)
 }
 
-impl<T: AsyncRead, C> ReadFramed<T, C> {
+impl<T, C> ReadFramed<T, C> {
     /// Returns a reference to the underlying I/O stream wrapped by `ReadFramed`.
     pub fn get_ref(&self) -> &ReadBuf<T> {
         &self.0
@@ -222,7 +222,7 @@ pub fn write_framed<T, C>(io: WriteBuf<T>, codec: C) -> WriteFramed<T, C> {
     WriteFramed(io, codec)
 }
 
-impl<T: AsyncWrite, C> WriteFramed<T, C> {
+impl<T, C> WriteFramed<T, C> {
     /// Returns a reference to the underlying I/O stream wrapped by `WriteFramed`.
     pub fn get_ref(&self) -> &WriteBuf<T> {
         &self.0
