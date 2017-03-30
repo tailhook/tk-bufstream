@@ -1,8 +1,6 @@
 use std::io;
 use std::fmt;
 use std::mem;
-#[cfg(unix)]
-use std::os::unix::io::{AsRawFd, RawFd};
 
 use futures::{Async, Future, Poll};
 use futures::sync::{BiLock, BiLockAcquired, BiLockAcquire};
@@ -217,6 +215,12 @@ impl<S> WriteRaw<S> {
             shared: self.io.unlock(),
         }
     }
+    pub fn get_ref(&self) -> &S {
+        &self.io.socket
+    }
+    pub fn get_mut(&mut self) -> &mut S {
+        &mut self.io.socket
+    }
 }
 
 impl<S: AsyncWrite> Future for FutureWriteRaw<S> {
@@ -263,21 +267,19 @@ impl<S: AsyncWrite> io::Write for WriteRaw<S> {
         self.io.socket.flush()
     }
 }
-
-#[cfg(unix)]
-impl<S: AsRawFd> AsRawFd for WriteRaw<S> {
-    fn as_raw_fd(&self) -> RawFd {
-        self.io.socket.as_raw_fd()
+impl<S: AsyncWrite> AsyncWrite for WriteRaw<S> {
+    fn shutdown(&mut self) -> Poll<(), io::Error> {
+        self.io.socket.shutdown()
     }
 }
 
-impl<S: AsyncRead> fmt::Debug for ReadBuf<S> {
+impl<S> fmt::Debug for ReadBuf<S> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "ReadBuf {{ in: {}b }}", self.in_buf.len())
     }
 }
 
-impl<S: AsyncWrite> fmt::Debug for WriteBuf<S> {
+impl<S> fmt::Debug for WriteBuf<S> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "WriteBuf {{ out: {}b }}", self.out_buf.len())
     }
