@@ -8,6 +8,7 @@ readme = "README.rst"
 keywords = ["tokio", "buffer", "stream", "tcp"]
 homepage = "http://github.com/tailhook/tk-bufstream"
 documentation = "http://docs.rs/tk-bufstream"
+categories = ["asynchronous", "network-programming"]
 version = "0.3.0"
 authors = ["paul@colomiets.name"]
 
